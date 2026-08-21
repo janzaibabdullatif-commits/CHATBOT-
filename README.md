@@ -18,9 +18,9 @@ A simple terminal-based AI chatbot built with Python, powered by the Groq API an
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/your-repo-name.git
-   cd your-repo-name
-   ```
+   git clone https:[//github.com/your-username/your-repo-name.git](https://github.com/janzaibabdullatif-commits/CHATBOT-)
+   cd [your-repo-name
+   ```](https://github.com/janzaibabdullatif-commits/CHATBOT-)
 
 2. Create a virtual environment and activate it:
    ```bash
