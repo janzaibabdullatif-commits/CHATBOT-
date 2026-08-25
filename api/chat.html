@@ -280,6 +280,84 @@
   .bubble blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--border); color: var(--muted); }
   .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
+  .copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { background: var(--hover); color: var(--text); }
+  .copy-btn svg { width: 12px; height: 12px; }
+  .copy-btn.copied { color: #16a34a; border-color: #16a34a; }
+
+  /* Bot avatar */
+  .bot-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+  }
+  .bot-avatar svg { width: 15px; height: 15px; color: #fff; }
+
+  .bot-row-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .thinking-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .thinking-dots span {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-right: 3px;
+    animation: dotPulse 1.2s infinite ease-in-out;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes dotPulse {
+    0%, 60%, 100% { opacity: 0.3; transform: scale(0.85); }
+    30% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Sidebar sections + footer */
+  .sidebar-section-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding: 10px 10px 4px;
+  }
+
+  .sidebar-footer {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+
   form {
     display: flex;
     gap: 10px;
@@ -341,6 +419,14 @@
       </button>
     </div>
     <div class="conv-list" id="convList"></div>
+    <div class="sidebar-section-label">Projects</div>
+    <div style="padding: 0 8px 8px;">
+      <button class="new-chat-btn" id="newProjectBtn" type="button" style="font-weight:500;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path></svg>
+        New project
+      </button>
+    </div>
+    <div class="sidebar-footer">Made by Jahanzaib</div>
   </div>
 
   <div class="app">
@@ -411,9 +497,9 @@
 
   function getGreeting() {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning! How can I help you today?";
-    if (hour < 17) return "Good afternoon! How can I help you today?";
-    return "Good evening! How can I help you today?";
+    if (hour < 12) return "Good morning!";
+    if (hour < 17) return "Good afternoon!";
+    return "Good evening!";
   }
 
   function createConversation() {
@@ -502,28 +588,88 @@
     log.scrollTop = log.scrollHeight;
   }
 
+  const BOT_AVATAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"></rect><path d="M12 8V4M9 4h6"></path><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none"></circle><circle cx="15" cy="14" r="1.3" fill="currentColor" stroke="none"></circle></svg>';
+
   function addBubbleToDOM(role, text) {
     const log = document.getElementById("log");
-    const row = document.createElement("div");
-    row.className = "row " + (role === "user" ? "user" : "bot");
+    const wrapper = document.createElement("div");
+    wrapper.className = "row " + (role === "user" ? "user" : "bot");
+    wrapper.style.flexDirection = "column";
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
     if (role === "user") {
       bubble.textContent = text;
+      wrapper.appendChild(bubble);
     } else {
       bubble.innerHTML = marked.parse(text);
+
+      const inner = document.createElement("div");
+      inner.className = "bot-row-inner";
+
+      const avatar = document.createElement("div");
+      avatar.className = "bot-avatar";
+      avatar.innerHTML = BOT_AVATAR_SVG;
+
+      inner.appendChild(avatar);
+      inner.appendChild(bubble);
+      wrapper.appendChild(inner);
     }
 
-    row.appendChild(bubble);
-    log.appendChild(row);
+    if (role !== "user") {
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.style.marginLeft = "34px";
+      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>';
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(bubble.innerText).then(() => {
+          copyBtn.classList.add("copied");
+          copyBtn.querySelector("span").textContent = "Copied";
+          setTimeout(() => {
+            copyBtn.classList.remove("copied");
+            copyBtn.querySelector("span").textContent = "Copy";
+          }, 1500);
+        });
+      });
+      wrapper.appendChild(copyBtn);
+    }
+
+    log.appendChild(wrapper);
     log.scrollTop = log.scrollHeight;
     return bubble;
   }
 
-  // ---------- New chat button ----------
+  function addThinkingBubble() {
+    const log = document.getElementById("log");
+    const wrapper = document.createElement("div");
+    wrapper.className = "row bot";
+    wrapper.style.flexDirection = "column";
+
+    const inner = document.createElement("div");
+    inner.className = "bot-row-inner";
+
+    const avatar = document.createElement("div");
+    avatar.className = "bot-avatar";
+    avatar.innerHTML = BOT_AVATAR_SVG;
+
+    const thinking = document.createElement("div");
+    thinking.className = "bubble thinking-wrap";
+    thinking.innerHTML = 'Thinking<span class="thinking-dots"><span></span><span></span><span></span></span>';
+
+    inner.appendChild(avatar);
+    inner.appendChild(thinking);
+    wrapper.appendChild(inner);
+
+    log.appendChild(wrapper);
+    log.scrollTop = log.scrollHeight;
+    return { wrapper, bubble: thinking };
+  }
+
+  // ---------- New chat / New project buttons ----------
   document.getElementById("newChatBtn").addEventListener("click", createConversation);
+  document.getElementById("newProjectBtn").addEventListener("click", createConversation);
 
   // ---------- Chat form ----------
   const API_URL = "/chat";
@@ -553,8 +699,7 @@
     input.value = "";
     sendBtn.disabled = true;
 
-    const typingBubble = addBubbleToDOM("bot", "...");
-    typingBubble.classList.add("typing");
+    const { wrapper: thinkingWrapper, bubble: thinkingBubble } = addThinkingBubble();
 
     try {
       // Build history from all prior messages except the greeting and the message just sent
@@ -574,14 +719,14 @@
         throw new Error(data.error);
       }
 
-      typingBubble.classList.remove("typing");
-      typingBubble.innerHTML = marked.parse(data.reply);
+      thinkingWrapper.remove();
+      addBubbleToDOM("bot", data.reply);
 
       conv.messages.push({ role: "assistant", content: data.reply });
       saveConversations();
 
     } catch (err) {
-      typingBubble.parentElement.remove();
+      thinkingWrapper.remove();
       conv.messages.pop(); // remove the failed user message from stored history
       errorMsg.textContent = "Error: " + err.message;
       errorMsg.style.display = "block";
