@@ -4,10 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chatbot</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <style>
   :root {
     --bg: #fafafa;
     --panel: #ffffff;
+    --sidebar: #f2f2f3;
     --text: #1a1a1a;
     --muted: #767676;
     --border: #e5e5e5;
@@ -16,11 +18,13 @@
     --bot-bubble: #f0f0f0;
     --accent: #2563eb;
     --input-bg: #ffffff;
+    --hover: rgba(0,0,0,0.05);
   }
 
   [data-theme="dark"] {
     --bg: #16171a;
     --panel: #1e1f23;
+    --sidebar: #19191d;
     --text: #f2f2f2;
     --muted: #9a9ba3;
     --border: #2e2f34;
@@ -29,6 +33,7 @@
     --bot-bubble: #26272c;
     --accent: #3b82f6;
     --input-bg: #1e1f23;
+    --hover: rgba(255,255,255,0.06);
   }
 
   * { box-sizing: border-box; }
@@ -47,36 +52,147 @@
     transition: background 0.2s ease, color 0.2s ease;
   }
 
-  .app {
+  .shell {
     width: 100%;
-    max-width: 680px;
+    max-width: 1000px;
     height: 100vh;
     display: flex;
-    flex-direction: column;
     background: var(--panel);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.2s ease;
+  }
+
+  .sidebar.collapsed {
+    margin-left: -260px;
+  }
+
+  .sidebar-top {
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .new-chat-btn {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+  }
+
+  .new-chat-btn:hover { background: var(--hover); }
+  .new-chat-btn svg { width: 15px; height: 15px; }
+
+  .conv-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .conv-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 2px;
+    position: relative;
+  }
+
+  .conv-item:hover { background: var(--hover); }
+  .conv-item.active { background: var(--hover); font-weight: 600; }
+
+  .conv-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .conv-delete {
+    opacity: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .conv-item:hover .conv-delete { opacity: 1; }
+  .conv-delete:hover { background: rgba(220,38,38,0.15); color: #dc2626; }
+  .conv-delete svg { width: 13px; height: 13px; }
+
+  .empty-convs {
+    color: var(--muted);
+    font-size: 12.5px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+
+  /* Main chat area */
+  .app {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   header {
-    padding: 18px 22px;
+    padding: 14px 22px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
   }
+
+  #sidebarToggle {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  #sidebarToggle:hover { border-color: var(--accent); }
+  #sidebarToggle svg { width: 16px; height: 16px; }
 
   header h1 {
     font-size: 16px;
     margin: 0;
     font-weight: 600;
-  }
-
-  header .sub {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 2px;
+    flex: 1;
   }
 
   #themeToggle {
@@ -91,17 +207,11 @@
     align-items: center;
     justify-content: center;
     transition: background 0.2s, border-color 0.2s;
+    flex-shrink: 0;
   }
 
-  #themeToggle:hover {
-    border-color: var(--accent);
-  }
-
-  #themeToggle svg {
-    width: 18px;
-    height: 18px;
-  }
-
+  #themeToggle:hover { border-color: var(--accent); }
+  #themeToggle svg { width: 18px; height: 18px; }
   #themeToggle .moon { display: none; }
   [data-theme="dark"] #themeToggle .sun { display: none; }
   [data-theme="dark"] #themeToggle .moon { display: block; }
@@ -115,25 +225,15 @@
     gap: 14px;
   }
 
-  .row {
-    display: flex;
-    max-width: 78%;
-  }
-
-  .row.user {
-    align-self: flex-end;
-  }
-
-  .row.bot {
-    align-self: flex-start;
-  }
+  .row { display: flex; max-width: 78%; }
+  .row.user { align-self: flex-end; }
+  .row.bot { align-self: flex-start; max-width: 90%; }
 
   .bubble {
     padding: 11px 15px;
     border-radius: 14px;
-    line-height: 1.5;
+    line-height: 1.55;
     font-size: 14.5px;
-    white-space: pre-wrap;
     word-wrap: break-word;
   }
 
@@ -141,6 +241,7 @@
     background: var(--user-bubble);
     color: var(--user-text);
     border-bottom-right-radius: 4px;
+    white-space: pre-wrap;
   }
 
   .row.bot .bubble {
@@ -149,10 +250,35 @@
     border-bottom-left-radius: 4px;
   }
 
-  .bubble.typing::after {
-    content: "...";
-    opacity: 0.5;
+  .bubble.typing::after { content: "..."; opacity: 0.5; }
+
+  .bubble p { margin: 0 0 8px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble ul, .bubble ol { margin: 6px 0; padding-left: 20px; }
+  .bubble li { margin: 3px 0; }
+  .bubble code {
+    background: rgba(128,128,128,0.18);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: "SF Mono", Consolas, monospace;
   }
+  .bubble pre {
+    background: rgba(128,128,128,0.18);
+    padding: 10px 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  .bubble pre code { background: none; padding: 0; }
+  .bubble table { border-collapse: collapse; margin: 8px 0; width: 100%; font-size: 13px; }
+  .bubble th, .bubble td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  .bubble th { background: rgba(128,128,128,0.1); }
+  .bubble h1, .bubble h2, .bubble h3 { margin: 12px 0 6px; font-size: 1.05em; font-weight: 600; }
+  .bubble h1:first-child, .bubble h2:first-child, .bubble h3:first-child { margin-top: 0; }
+  .bubble a { color: var(--accent); }
+  .bubble blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--border); color: var(--muted); }
+  .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
   form {
     display: flex;
@@ -173,13 +299,8 @@
     transition: border-color 0.2s;
   }
 
-  input::placeholder {
-    color: var(--muted);
-  }
-
-  input:focus {
-    border-color: var(--accent);
-  }
+  input::placeholder { color: var(--muted); }
+  input:focus { border-color: var(--accent); }
 
   button[type="submit"] {
     background: var(--accent);
@@ -192,10 +313,7 @@
     cursor: pointer;
   }
 
-  button[type="submit"]:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
+  button[type="submit"]:disabled { opacity: 0.5; cursor: default; }
 
   .error {
     color: #dc2626;
@@ -203,63 +321,200 @@
     padding: 0 22px 8px;
   }
 
-  #log::-webkit-scrollbar { width: 8px; }
-  #log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  #log::-webkit-scrollbar, .conv-list::-webkit-scrollbar { width: 8px; }
+  #log::-webkit-scrollbar-thumb, .conv-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  @media (max-width: 640px) {
+    .sidebar { position: absolute; z-index: 10; height: 100vh; }
+    .sidebar.collapsed { margin-left: -260px; }
+  }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div>
-      <h1>Chatbot</h1>
-      <div class="sub">Groq · GPT-OSS-120B</div>
+<div class="shell">
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <button class="new-chat-btn" id="newChatBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+        New chat
+      </button>
     </div>
-    <button id="themeToggle" type="button" aria-label="Toggle dark mode">
-      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="12" cy="12" r="4"></circle>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-      </svg>
-      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-      </svg>
-    </button>
-  </header>
+    <div class="conv-list" id="convList"></div>
+  </div>
 
-  <div id="log"></div>
-  <div class="error" id="errorMsg" style="display:none;"></div>
+  <div class="app">
+    <header>
+      <button id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+      </button>
+      <h1 id="chatTitle">Chatbot</h1>
+      <button id="themeToggle" type="button" aria-label="Toggle dark mode">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </header>
 
-  <form id="chatForm">
-    <input id="input" type="text" placeholder="Type a message..." autocomplete="off" />
-    <button id="sendBtn" type="submit">Send</button>
-  </form>
+    <div id="log"></div>
+    <div class="error" id="errorMsg" style="display:none;"></div>
+
+    <form id="chatForm">
+      <input id="input" type="text" placeholder="Type a message..." autocomplete="off" />
+      <button id="sendBtn" type="submit">Send</button>
+    </form>
+  </div>
+
 </div>
 
 <script>
+  // ---------- Theme ----------
   const root = document.documentElement;
-  const themeToggle = document.getElementById("themeToggle");
-
-  themeToggle.addEventListener("click", () => {
+  document.getElementById("themeToggle").addEventListener("click", () => {
     const isDark = root.getAttribute("data-theme") === "dark";
     root.setAttribute("data-theme", isDark ? "light" : "dark");
   });
 
-  const API_URL = "/chat";
+  // ---------- Sidebar toggle ----------
+  const sidebar = document.getElementById("sidebar");
+  document.getElementById("sidebarToggle").addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+  });
 
-  const log = document.getElementById("log");
-  const form = document.getElementById("chatForm");
-  const input = document.getElementById("input");
-  const sendBtn = document.getElementById("sendBtn");
-  const errorMsg = document.getElementById("errorMsg");
+  // ---------- Storage (in-memory, resets on full page reload) ----------
+  // conversations: { id, title, messages: [{role, content}] }
+  let conversations = [];
+  let activeId = null;
 
-  let history = [];
+  const STORAGE_KEY = "chatbot_conversations_v1";
 
-  function addBubble(role, text) {
+  function loadConversations() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) conversations = JSON.parse(raw);
+    } catch (e) {
+      conversations = [];
+    }
+  }
+
+  function saveConversations() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
+  function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning! How can I help you today?";
+    if (hour < 17) return "Good afternoon! How can I help you today?";
+    return "Good evening! How can I help you today?";
+  }
+
+  function createConversation() {
+    const conv = {
+      id: "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+      title: "New chat",
+      messages: [{ role: "assistant", content: getGreeting() }]
+    };
+    conversations.unshift(conv);
+    activeId = conv.id;
+    saveConversations();
+    renderSidebar();
+    renderActiveConversation();
+  }
+
+  function getActive() {
+    return conversations.find(c => c.id === activeId);
+  }
+
+  function deleteConversation(id, evt) {
+    evt.stopPropagation();
+    conversations = conversations.filter(c => c.id !== id);
+    saveConversations();
+
+    if (activeId === id) {
+      if (conversations.length > 0) {
+        activeId = conversations[0].id;
+      } else {
+        createConversation();
+        return;
+      }
+    }
+    renderSidebar();
+    renderActiveConversation();
+  }
+
+  function switchConversation(id) {
+    activeId = id;
+    renderSidebar();
+    renderActiveConversation();
+  }
+
+  function renderSidebar() {
+    const list = document.getElementById("convList");
+    list.innerHTML = "";
+
+    if (conversations.length === 0) {
+      list.innerHTML = '<div class="empty-convs">No conversations yet</div>';
+      return;
+    }
+
+    conversations.forEach(conv => {
+      const item = document.createElement("div");
+      item.className = "conv-item" + (conv.id === activeId ? " active" : "");
+      item.addEventListener("click", () => switchConversation(conv.id));
+
+      const title = document.createElement("div");
+      title.className = "conv-title";
+      title.textContent = conv.title;
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "conv-delete";
+      delBtn.type = "button";
+      delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"></path></svg>';
+      delBtn.addEventListener("click", (e) => deleteConversation(conv.id, e));
+
+      item.appendChild(title);
+      item.appendChild(delBtn);
+      list.appendChild(item);
+    });
+  }
+
+  function renderActiveConversation() {
+    const conv = getActive();
+    const log = document.getElementById("log");
+    log.innerHTML = "";
+
+    if (!conv) return;
+
+    document.getElementById("chatTitle").textContent = conv.title === "New chat" ? "Chatbot" : conv.title;
+
+    conv.messages.forEach(msg => {
+      addBubbleToDOM(msg.role === "user" ? "user" : "bot", msg.content);
+    });
+
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function addBubbleToDOM(role, text) {
+    const log = document.getElementById("log");
     const row = document.createElement("div");
     row.className = "row " + (role === "user" ? "user" : "bot");
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.textContent = text;
+
+    if (role === "user") {
+      bubble.textContent = text;
+    } else {
+      bubble.innerHTML = marked.parse(text);
+    }
 
     row.appendChild(bubble);
     log.appendChild(row);
@@ -267,20 +522,46 @@
     return bubble;
   }
 
+  // ---------- New chat button ----------
+  document.getElementById("newChatBtn").addEventListener("click", createConversation);
+
+  // ---------- Chat form ----------
+  const API_URL = "/chat";
+  const form = document.getElementById("chatForm");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("sendBtn");
+  const errorMsg = document.getElementById("errorMsg");
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const message = input.value.trim();
     if (!message) return;
 
+    const conv = getActive();
+    if (!conv) return;
+
     errorMsg.style.display = "none";
-    addBubble("user", message);
+
+    conv.messages.push({ role: "user", content: message });
+    if (conv.title === "New chat") {
+      conv.title = message.length > 32 ? message.slice(0, 32) + "…" : message;
+      document.getElementById("chatTitle").textContent = conv.title;
+      renderSidebar();
+    }
+    addBubbleToDOM("user", message);
+
     input.value = "";
     sendBtn.disabled = true;
 
-    const typingBubble = addBubble("bot", "");
+    const typingBubble = addBubbleToDOM("bot", "...");
     typingBubble.classList.add("typing");
 
     try {
+      // Build history from all prior messages except the greeting and the message just sent
+      const history = conv.messages
+        .slice(0, -1)
+        .filter((m, idx) => !(idx === 0 && m.role === "assistant"));
+
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -294,13 +575,14 @@
       }
 
       typingBubble.classList.remove("typing");
-      typingBubble.textContent = data.reply;
+      typingBubble.innerHTML = marked.parse(data.reply);
 
-      history.push({ role: "user", content: message });
-      history.push({ role: "assistant", content: data.reply });
+      conv.messages.push({ role: "assistant", content: data.reply });
+      saveConversations();
 
     } catch (err) {
       typingBubble.parentElement.remove();
+      conv.messages.pop(); // remove the failed user message from stored history
       errorMsg.textContent = "Error: " + err.message;
       errorMsg.style.display = "block";
     } finally {
@@ -308,6 +590,16 @@
       input.focus();
     }
   });
+
+  // ---------- Init ----------
+  loadConversations();
+  if (conversations.length === 0) {
+    createConversation();
+  } else {
+    activeId = conversations[0].id;
+    renderSidebar();
+    renderActiveConversation();
+  }
 </script>
 </body>
 </html>
