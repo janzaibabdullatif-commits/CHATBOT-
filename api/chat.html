@@ -716,6 +716,19 @@
       }
     }
 
+
+    /* IMAGE UPLOAD - ADDED ONLY */
+    .image-upload-btn { width:46px; min-width:46px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .image-upload-btn:hover { background:var(--hover); }
+    .image-upload-btn svg { width:20px; height:20px; }
+    .image-preview-wrap { display:none; padding:0 22px 10px; border-top:1px solid var(--border); }
+    .image-preview-wrap.show { display:flex; }
+    .image-preview-box { position:relative; width:max-content; max-width:180px; }
+    .image-preview-box img { width:150px; max-height:120px; object-fit:cover; border-radius:10px; border:1px solid var(--border); display:block; }
+    .remove-image-btn { position:absolute; top:-7px; right:-7px; width:24px; height:24px; border:none; border-radius:50%; background:#dc2626; color:#fff; cursor:pointer; font-size:16px; line-height:22px; padding:0; }
+    .chat-upload-image { display:block; max-width:min(320px,100%); max-height:320px; object-fit:contain; border-radius:10px; margin-bottom:8px; }
+    @media (max-width:640px) { .image-preview-wrap { padding:0 14px 8px; } .image-preview-box img { width:130px; max-height:100px; } .image-upload-btn { width:48px; min-width:48px; } }
+
   </style>
 </head>
 
@@ -927,21 +940,28 @@
       ></div>
 
 
+      <input id="imageInput" type="file" accept="image/*" hidden>
+
+      <div class="image-preview-wrap" id="imagePreviewWrap">
+        <div class="image-preview-box">
+          <img id="imagePreview" alt="Selected image preview">
+          <button id="removeImageBtn" class="remove-image-btn" type="button" aria-label="Remove image">×</button>
+        </div>
+      </div>
+
       <form id="chatForm">
 
-        <input
-          id="input"
-          type="text"
-          placeholder="Type a message..."
-          autocomplete="off"
-        >
-
-        <button
-          id="sendBtn"
-          type="submit"
-        >
-          Send
+        <button id="imageUploadBtn" class="image-upload-btn" type="button" aria-label="Upload image" title="Upload image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
         </button>
+
+        <input id="input" type="text" placeholder="Type a message..." autocomplete="off">
+
+        <button id="sendBtn" type="submit">Send</button>
 
       </form>
 
@@ -1513,6 +1533,10 @@
             conv,
 
             idx
+          ,
+
+            msg.image || null
+
           );
 
         }
@@ -1637,7 +1661,8 @@
       role,
       text,
       conv,
-      msgIndex
+      msgIndex,
+      imageUrl = null
     ) {
 
       const log =
@@ -1679,10 +1704,19 @@
         role === "user"
       ) {
 
-        bubble.textContent =
-          text;
+        if (imageUrl) {
+          const uploadedImage = document.createElement("img");
+          uploadedImage.className = "chat-upload-image";
+          uploadedImage.src = imageUrl;
+          uploadedImage.alt = "Uploaded image";
+          bubble.appendChild(uploadedImage);
+        }
 
-
+        if (text) {
+          const textNode = document.createElement("div");
+          textNode.textContent = text;
+          bubble.appendChild(textNode);
+        }
         wrapper.appendChild(
           bubble
         );
@@ -2022,7 +2056,10 @@
           "user",
 
         content:
-          message
+          message,
+
+        image:
+          pendingImageData || null
 
       });
 
@@ -2060,9 +2097,13 @@
 
         conv,
 
-        conv.messages.length - 1
+        conv.messages.length - 1,
+
+        pendingImageData
 
       );
+
+      clearSelectedImage();
 
 
       sendBtn.disabled =
@@ -2262,6 +2303,45 @@
       document.getElementById(
         "errorMsg"
       );
+
+
+    /* IMAGE UPLOAD - ADDED ONLY */
+
+    const imageInput = document.getElementById("imageInput");
+    const imageUploadBtn = document.getElementById("imageUploadBtn");
+    const imagePreviewWrap = document.getElementById("imagePreviewWrap");
+    const imagePreview = document.getElementById("imagePreview");
+    const removeImageBtn = document.getElementById("removeImageBtn");
+
+    let pendingImageData = null;
+
+    imageUploadBtn.addEventListener("click", () => {
+      imageInput.click();
+    });
+
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files && imageInput.files[0];
+      if (!file || !file.type.startsWith("image/")) return;
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        pendingImageData = reader.result;
+        imagePreview.src = pendingImageData;
+        imagePreviewWrap.classList.add("show");
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    function clearSelectedImage() {
+      pendingImageData = null;
+      imageInput.value = "";
+      imagePreview.removeAttribute("src");
+      imagePreviewWrap.classList.remove("show");
+    }
+
+    removeImageBtn.addEventListener("click", clearSelectedImage);
 
 
     form.addEventListener(
