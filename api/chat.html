@@ -280,23 +280,30 @@
   .bubble blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--border); color: var(--muted); }
   .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
-  .copy-btn {
+  .action-row {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 6px;
-    padding: 5px 9px;
+    gap: 4px;
+    margin-top: 5px;
+  }
+  .action-row.bot-actions { margin-left: 34px; }
+
+  .icon-btn {
+    width: 26px;
+    height: 26px;
     border-radius: 7px;
-    border: 1px solid var(--border);
-    background: var(--panel);
+    border: none;
+    background: transparent;
     color: var(--muted);
-    font-size: 11.5px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.15s, color 0.15s;
   }
-  .copy-btn:hover { background: var(--hover); color: var(--text); }
-  .copy-btn svg { width: 12px; height: 12px; }
-  .copy-btn.copied { color: #16a34a; border-color: #16a34a; }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  .icon-btn svg { width: 14px; height: 14px; }
+  .icon-btn.copied { color: #16a34a; }
 
   /* Bot avatar */
   .bot-avatar {
@@ -356,6 +363,33 @@
     font-size: 11.5px;
     color: var(--muted);
     text-align: center;
+  }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .empty-state .emoji {
+    font-size: 44px;
+    margin-bottom: 14px;
+  }
+
+  .empty-state .greeting {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .empty-state .sub {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--muted);
   }
 
   form {
@@ -447,6 +481,11 @@
     </header>
 
     <div id="log"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="emoji" id="emptyEmoji">👋</div>
+      <div class="greeting" id="emptyGreeting">Good morning!</div>
+      <div class="sub">What can I help you with today?</div>
+    </div>
     <div class="error" id="errorMsg" style="display:none;"></div>
 
     <form id="chatForm">
@@ -497,16 +536,17 @@
 
   function getGreeting() {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning!";
-    if (hour < 17) return "Good afternoon!";
-    return "Good evening!";
+    if (hour < 12) return { text: "Good morning!", emoji: "🌤️" };
+    if (hour < 17) return { text: "Good afternoon!", emoji: "☀️" };
+    if (hour < 21) return { text: "Good evening!", emoji: "🌇" };
+    return { text: "Good night!", emoji: "🌙" };
   }
 
   function createConversation() {
     const conv = {
       id: "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
       title: "New chat",
-      messages: [{ role: "assistant", content: getGreeting() }]
+      messages: []
     };
     conversations.unshift(conv);
     activeId = conv.id;
@@ -575,14 +615,27 @@
   function renderActiveConversation() {
     const conv = getActive();
     const log = document.getElementById("log");
+    const emptyState = document.getElementById("emptyState");
     log.innerHTML = "";
 
     if (!conv) return;
 
     document.getElementById("chatTitle").textContent = conv.title === "New chat" ? "Chatbot" : conv.title;
 
-    conv.messages.forEach(msg => {
-      addBubbleToDOM(msg.role === "user" ? "user" : "bot", msg.content);
+    if (conv.messages.length === 0) {
+      const g = getGreeting();
+      document.getElementById("emptyEmoji").textContent = g.emoji;
+      document.getElementById("emptyGreeting").textContent = g.text;
+      emptyState.style.display = "flex";
+      log.style.display = "none";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    log.style.display = "flex";
+
+    conv.messages.forEach((msg, idx) => {
+      addBubbleToDOM(msg.role === "user" ? "user" : "bot", msg.content, conv, idx);
     });
 
     log.scrollTop = log.scrollHeight;
@@ -590,7 +643,36 @@
 
   const BOT_AVATAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"></rect><path d="M12 8V4M9 4h6"></path><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none"></circle><circle cx="15" cy="14" r="1.3" fill="currentColor" stroke="none"></circle></svg>';
 
-  function addBubbleToDOM(role, text) {
+  const ICONS = {
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>'
+  };
+
+  function makeIconBtn(iconKey, title, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "icon-btn";
+    btn.title = title;
+    btn.innerHTML = ICONS[iconKey];
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+
+  function copyToClipboard(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.innerHTML;
+      btn.innerHTML = ICONS.check;
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.remove("copied");
+      }, 1300);
+    });
+  }
+
+  function addBubbleToDOM(role, text, conv, msgIndex) {
     const log = document.getElementById("log");
     const wrapper = document.createElement("div");
     wrapper.className = "row " + (role === "user" ? "user" : "bot");
@@ -602,6 +684,18 @@
     if (role === "user") {
       bubble.textContent = text;
       wrapper.appendChild(bubble);
+
+      const actions = document.createElement("div");
+      actions.className = "action-row";
+      actions.style.justifyContent = "flex-end";
+
+      actions.appendChild(makeIconBtn("edit", "Edit", () => {
+        input.value = text;
+        input.focus();
+      }));
+      actions.appendChild(makeIconBtn("copy", "Copy", (e) => copyToClipboard(e.currentTarget, text)));
+
+      wrapper.appendChild(actions);
     } else {
       bubble.innerHTML = marked.parse(text);
 
@@ -615,25 +709,16 @@
       inner.appendChild(avatar);
       inner.appendChild(bubble);
       wrapper.appendChild(inner);
-    }
 
-    if (role !== "user") {
-      const copyBtn = document.createElement("button");
-      copyBtn.type = "button";
-      copyBtn.className = "copy-btn";
-      copyBtn.style.marginLeft = "34px";
-      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>';
-      copyBtn.addEventListener("click", () => {
-        navigator.clipboard.writeText(bubble.innerText).then(() => {
-          copyBtn.classList.add("copied");
-          copyBtn.querySelector("span").textContent = "Copied";
-          setTimeout(() => {
-            copyBtn.classList.remove("copied");
-            copyBtn.querySelector("span").textContent = "Copy";
-          }, 1500);
-        });
-      });
-      wrapper.appendChild(copyBtn);
+      const actions = document.createElement("div");
+      actions.className = "action-row bot-actions";
+
+      actions.appendChild(makeIconBtn("refresh", "Regenerate", () => {
+        if (conv && typeof msgIndex === "number") regenerateResponse(conv, msgIndex);
+      }));
+      actions.appendChild(makeIconBtn("copy", "Copy", (e) => copyToClipboard(e.currentTarget, bubble.innerText)));
+
+      wrapper.appendChild(actions);
     }
 
     log.appendChild(wrapper);
@@ -671,6 +756,69 @@
   document.getElementById("newChatBtn").addEventListener("click", createConversation);
   document.getElementById("newProjectBtn").addEventListener("click", createConversation);
 
+  // ---------- Send message (used by form submit and regenerate) ----------
+  async function sendMessage(message, conv) {
+    errorMsg.style.display = "none";
+
+    document.getElementById("emptyState").style.display = "none";
+    document.getElementById("log").style.display = "flex";
+
+    conv.messages.push({ role: "user", content: message });
+    if (conv.title === "New chat") {
+      conv.title = message.length > 32 ? message.slice(0, 32) + "…" : message;
+      document.getElementById("chatTitle").textContent = conv.title;
+      renderSidebar();
+    }
+    addBubbleToDOM("user", message, conv, conv.messages.length - 1);
+
+    sendBtn.disabled = true;
+
+    const { wrapper: thinkingWrapper } = addThinkingBubble();
+
+    try {
+      const history = conv.messages.slice(0, -1);
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, history })
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      thinkingWrapper.remove();
+      conv.messages.push({ role: "assistant", content: data.reply });
+      addBubbleToDOM("bot", data.reply, conv, conv.messages.length - 1);
+      saveConversations();
+
+    } catch (err) {
+      thinkingWrapper.remove();
+      conv.messages.pop();
+      errorMsg.textContent = "Error: " + err.message;
+      errorMsg.style.display = "block";
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function regenerateResponse(conv, botMsgIndex) {
+    // Find the user message right before this bot reply
+    let userIdx = botMsgIndex - 1;
+    if (userIdx < 0 || conv.messages[userIdx].role !== "user") return;
+
+    const userText = conv.messages[userIdx].content;
+    // Drop this bot message and everything after it, then resend
+    conv.messages = conv.messages.slice(0, userIdx);
+    saveConversations();
+    renderActiveConversation();
+    sendMessage(userText, conv);
+  }
+
   // ---------- Chat form ----------
   const API_URL = "/chat";
   const form = document.getElementById("chatForm");
@@ -686,54 +834,8 @@
     const conv = getActive();
     if (!conv) return;
 
-    errorMsg.style.display = "none";
-
-    conv.messages.push({ role: "user", content: message });
-    if (conv.title === "New chat") {
-      conv.title = message.length > 32 ? message.slice(0, 32) + "…" : message;
-      document.getElementById("chatTitle").textContent = conv.title;
-      renderSidebar();
-    }
-    addBubbleToDOM("user", message);
-
     input.value = "";
-    sendBtn.disabled = true;
-
-    const { wrapper: thinkingWrapper, bubble: thinkingBubble } = addThinkingBubble();
-
-    try {
-      // Build history from all prior messages except the greeting and the message just sent
-      const history = conv.messages
-        .slice(0, -1)
-        .filter((m, idx) => !(idx === 0 && m.role === "assistant"));
-
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history })
-      });
-
-      const data = await res.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      thinkingWrapper.remove();
-      addBubbleToDOM("bot", data.reply);
-
-      conv.messages.push({ role: "assistant", content: data.reply });
-      saveConversations();
-
-    } catch (err) {
-      thinkingWrapper.remove();
-      conv.messages.pop(); // remove the failed user message from stored history
-      errorMsg.textContent = "Error: " + err.message;
-      errorMsg.style.display = "block";
-    } finally {
-      sendBtn.disabled = false;
-      input.focus();
-    }
+    await sendMessage(message, conv);
   });
 
   // ---------- Init ----------
